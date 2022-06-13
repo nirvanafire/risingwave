@@ -35,7 +35,7 @@
 #![feature(lint_reasons)]
 
 pub mod base;
-mod datagen;
+pub mod datagen;
 mod filesystem;
 pub mod kafka;
 pub mod kinesis;
