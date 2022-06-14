@@ -27,8 +27,6 @@ use risingwave_common::util::ordered::{serialize_pk, OrderedRowSerializer};
 use risingwave_common::util::sort_util::OrderType;
 use risingwave_hummock_sdk::key::next_key;
 
-// use crate::cell_deserializer::CellDeserializer;
-// use crate::cell_serializer::CellSerializer;
 use super::cell_based_table::{CellBasedTable, CellBasedTableStreamingIter};
 use super::mem_table::{MemTable, RowOp};
 use crate::cell_based_row_deserializer::{make_column_desc_index, ColumnDescMapping};
@@ -50,6 +48,7 @@ pub struct StateTable<S: StateStore> {
 
     pk_indices: Vec<usize>,
 }
+
 impl<S: StateStore> StateTable<S> {
     pub fn new(
         keyspace: Keyspace<S>,
