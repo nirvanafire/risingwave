@@ -41,6 +41,7 @@ use crate::error::{StorageError, StorageResult};
 use crate::keyspace::StripPrefixIterator;
 use crate::monitor::StateStoreMetrics;
 use crate::storage_value::{StorageValue, ValueMeta};
+use crate::store::{ReadOptions, WriteOptions};
 use crate::{Keyspace, StateStore, StateStoreIter};
 
 /// `CellBasedTable` is the interface accessing relational data in KV(`StateStore`) with encoding
@@ -203,7 +204,15 @@ impl<S: StateStore> CellBasedTable<S> {
         let state_store_range_scan_res = self
             .keyspace
             .state_store()
-            .scan(start_key..end_key, None, epoch, None)
+            .scan(
+                start_key..end_key,
+                None,
+                ReadOptions {
+                    epoch,
+                    table_id: self.keyspace.state_table_id(),
+                },
+                None,
+            )
             .await?;
         let mut cell_based_row_deserializer = CellBasedRowDeserializer::new(&*self.mapping);
         for (key, value) in state_store_range_scan_res {
@@ -305,7 +314,12 @@ impl<S: StateStore> CellBasedTable<S> {
                 }
             }
         }
-        batch.ingest(epoch).await?;
+        batch
+            .ingest(WriteOptions {
+                epoch,
+                table_id: self.keyspace.state_table_id(),
+            })
+            .await?;
         Ok(())
     }
 

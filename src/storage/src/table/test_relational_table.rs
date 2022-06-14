@@ -28,7 +28,7 @@ use crate::cell_based_row_serializer::CellBasedRowSerializer;
 use crate::error::StorageResult;
 use crate::memory::MemoryStateStore;
 use crate::storage_value::{StorageValue, ValueMeta};
-use crate::store::StateStore;
+use crate::store::{StateStore, WriteOptions};
 use crate::table::cell_based_table::{CellBasedTable, CellTableChunkIter};
 use crate::table::state_table::StateTable;
 use crate::table::TableIter;
@@ -1486,7 +1486,13 @@ async fn test_dedup_cell_based_table_iter_with(
     }
 
     // commit batch
-    batch.ingest(epoch).await.unwrap();
+    batch
+        .ingest(WriteOptions {
+            epoch,
+            ..Default::default()
+        })
+        .await
+        .unwrap();
 
     let mut actual_rows = vec![];
 

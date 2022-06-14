@@ -164,6 +164,7 @@ mod tests {
     use risingwave_common::types::DataType;
     use risingwave_source::{MemSourceManager, SourceManager, StreamSourceReader};
     use risingwave_storage::memory::MemoryStateStore;
+    use risingwave_storage::store::ReadOptions;
     use risingwave_storage::*;
 
     use super::*;
@@ -299,7 +300,15 @@ mod tests {
         let epoch = u64::MAX;
         let full_range = (Bound::<Vec<u8>>::Unbounded, Bound::<Vec<u8>>::Unbounded);
         let store_content = store
-            .scan(full_range, None, epoch, Default::default())
+            .scan(
+                full_range,
+                None,
+                ReadOptions {
+                    epoch,
+                    ..Default::default()
+                },
+                Default::default(),
+            )
             .await?;
         assert!(store_content.is_empty());
 

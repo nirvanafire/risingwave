@@ -22,6 +22,7 @@ use risingwave_common::consistent_hash::{VNodeBitmap, VirtualNode};
 use risingwave_hummock_sdk::key::next_key;
 
 use crate::error::StorageResult;
+use crate::store::ReadOptions;
 use crate::{StateStore, StateStoreIter};
 
 /// Provides API to read key-value pairs of a prefix in the storage backend.
@@ -35,6 +36,8 @@ pub struct Keyspace<S: StateStore> {
     /// Records vnodes that the keyspace owns and the id of state table. Currently, it will be None
     /// in batch, and might be refactored later.
     vnode_bitmap: Option<VNodeBitmap>,
+
+    table_id: TableId,
 }
 
 impl<S: StateStore> Keyspace<S> {
@@ -56,6 +59,7 @@ impl<S: StateStore> Keyspace<S> {
             store,
             prefix,
             vnode_bitmap: None,
+            table_id: *id,
         }
     }
 
@@ -73,6 +77,7 @@ impl<S: StateStore> Keyspace<S> {
             store,
             prefix,
             vnode_bitmap: Some(vnode_bitmap),
+            table_id: *id,
         }
     }
 
@@ -90,6 +95,7 @@ impl<S: StateStore> Keyspace<S> {
             store,
             prefix,
             vnode_bitmap: Some(vnode_bitmap),
+            table_id: *id,
         }
     }
 
@@ -102,6 +108,7 @@ impl<S: StateStore> Keyspace<S> {
             store: self.store.clone(),
             prefix,
             vnode_bitmap: self.vnode_bitmap.clone(),
+            table_id: self.table_id,
         }
     }
 
@@ -123,7 +130,16 @@ impl<S: StateStore> Keyspace<S> {
     /// Treats the keyspace as a single key, and gets its value.
     /// The returned value is based on a snapshot corresponding to the given `epoch`
     pub async fn value(&self, epoch: u64) -> StorageResult<Option<Bytes>> {
-        self.store.get(&self.prefix, epoch, None).await
+        self.store
+            .get(
+                &self.prefix,
+                ReadOptions {
+                    epoch,
+                    table_id: self.table_id,
+                },
+                None,
+            )
+            .await
     }
 
     /// Concatenates this keyspace and the given key to produce a prefixed key.
@@ -134,7 +150,16 @@ impl<S: StateStore> Keyspace<S> {
     /// Gets from the keyspace with the `prefixed_key` of given key.
     /// The returned value is based on a snapshot corresponding to the given `epoch`
     pub async fn get(&self, key: impl AsRef<[u8]>, epoch: u64) -> StorageResult<Option<Bytes>> {
-        self.store.get(&self.prefixed_key(key), epoch, None).await
+        self.store
+            .get(
+                &self.prefixed_key(key),
+                ReadOptions {
+                    epoch,
+                    table_id: self.table_id,
+                },
+                None,
+            )
+            .await
     }
 
     pub async fn get_with_vnode(
@@ -149,14 +174,30 @@ impl<S: StateStore> Keyspace<S> {
                 vnode,
             );
             self.store
-                .get(&self.prefixed_key(key), epoch, Some(&vnode_bitmap))
+                .get(
+                    &self.prefixed_key(key),
+                    ReadOptions {
+                        epoch,
+                        table_id: self.table_id,
+                    },
+                    Some(&vnode_bitmap),
+                )
                 .await
         } else {
             // FIXME(Yuanxin): Due to some limitations, we have to take into consideration the
             // situation where `self.vnode_bitmap` is None. We should assert
             // `self.vnode_bitmap.is_some()` later when all stateful executors (as well as batch)
             // pass in their vnodes.
-            self.store.get(&self.prefixed_key(key), epoch, None).await
+            self.store
+                .get(
+                    &self.prefixed_key(key),
+                    ReadOptions {
+                        epoch,
+                        table_id: self.table_id,
+                    },
+                    None,
+                )
+                .await
         }
     }
 
@@ -171,7 +212,15 @@ impl<S: StateStore> Keyspace<S> {
         let range = self.prefix.to_owned()..next_key(self.prefix.as_slice());
         let mut pairs = self
             .store
-            .scan(range, limit, epoch, self.vnode_bitmap.clone())
+            .scan(
+                range,
+                limit,
+                ReadOptions {
+                    epoch,
+                    table_id: self.table_id,
+                },
+                self.vnode_bitmap.clone(),
+            )
             .await?;
         pairs
             .iter_mut()
@@ -184,7 +233,14 @@ impl<S: StateStore> Keyspace<S> {
     async fn iter_inner(&'_ self, epoch: u64) -> StorageResult<S::Iter> {
         let range = self.prefix.to_owned()..next_key(self.prefix.as_slice());
         self.store
-            .iter(range, epoch, self.vnode_bitmap.clone())
+            .iter(
+                range,
+                ReadOptions {
+                    epoch,
+                    table_id: self.table_id,
+                },
+                self.vnode_bitmap.clone(),
+            )
             .await
     }
 
@@ -219,7 +275,14 @@ impl<S: StateStore> Keyspace<S> {
         let range = (start, end);
         let iter = self
             .store
-            .iter(range, epoch, self.vnode_bitmap.clone())
+            .iter(
+                range,
+                ReadOptions {
+                    epoch,
+                    table_id: self.table_id,
+                },
+                self.vnode_bitmap.clone(),
+            )
             .await?;
         let strip_prefix_iterator = StripPrefixIterator {
             iter,
@@ -241,6 +304,11 @@ impl<S: StateStore> Keyspace<S> {
     pub fn table_id(&self) -> u32 {
         assert!(self.vnode_bitmap.is_some());
         self.vnode_bitmap.as_ref().unwrap().table_id()
+    }
+
+    // TODO: duplicate of `table_id`
+    pub fn state_table_id(&self) -> TableId {
+        self.table_id
     }
 }
 

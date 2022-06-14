@@ -35,7 +35,7 @@ impl StateStore for PanicStateStore {
     fn get<'a>(
         &'a self,
         _key: &'a [u8],
-        _epoch: u64,
+        _read_options: ReadOptions,
         _vnode: Option<&'a VNodeBitmap>,
     ) -> Self::GetFuture<'_> {
         async move {
@@ -47,7 +47,7 @@ impl StateStore for PanicStateStore {
         &self,
         _key_range: R,
         _limit: Option<usize>,
-        _epoch: u64,
+        _read_options: ReadOptions,
         _vnodes: Option<VNodeBitmap>,
     ) -> Self::ScanFuture<'_, R, B>
     where
@@ -63,7 +63,7 @@ impl StateStore for PanicStateStore {
         &self,
         _key_range: R,
         _limit: Option<usize>,
-        _epoch: u64,
+        _read_options: ReadOptions,
         _vnodes: Option<VNodeBitmap>,
     ) -> Self::BackwardScanFuture<'_, R, B>
     where
@@ -78,7 +78,7 @@ impl StateStore for PanicStateStore {
     fn ingest_batch(
         &self,
         _kv_pairs: Vec<(Bytes, StorageValue)>,
-        _epoch: u64,
+        _write_options: WriteOptions,
     ) -> Self::IngestBatchFuture<'_> {
         async move {
             panic!("should not write the state store!");
@@ -88,7 +88,7 @@ impl StateStore for PanicStateStore {
     fn replicate_batch(
         &self,
         _kv_pairs: Vec<(Bytes, StorageValue)>,
-        _epoch: u64,
+        _write_options: WriteOptions,
     ) -> Self::ReplicateBatchFuture<'_> {
         async move {
             panic!("should not replicate batch from the state store!");
@@ -98,7 +98,7 @@ impl StateStore for PanicStateStore {
     fn iter<R, B>(
         &self,
         _key_range: R,
-        _epoch: u64,
+        _read_options: ReadOptions,
         _vnodes: Option<VNodeBitmap>,
     ) -> Self::IterFuture<'_, R, B>
     where
@@ -113,7 +113,7 @@ impl StateStore for PanicStateStore {
     fn backward_iter<R, B>(
         &self,
         _key_range: R,
-        _epoch: u64,
+        _read_options: ReadOptions,
         _vnodes: Option<VNodeBitmap>,
     ) -> Self::BackwardIterFuture<'_, R, B>
     where

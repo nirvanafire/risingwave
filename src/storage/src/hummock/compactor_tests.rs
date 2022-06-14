@@ -33,6 +33,7 @@ mod tests {
     use crate::hummock::HummockStorage;
     use crate::monitor::{StateStoreMetrics, StoreLocalStatistic};
     use crate::storage_value::StorageValue;
+    use crate::store::{ReadOptions, WriteOptions};
     use crate::{Keyspace, StateStore};
 
     async fn get_hummock_storage(
@@ -94,7 +95,10 @@ mod tests {
             storage
                 .ingest_batch(
                     vec![(key.clone(), StorageValue::new_default_put(val.clone()))],
-                    epoch,
+                    WriteOptions {
+                        epoch,
+                        ..Default::default()
+                    },
                 )
                 .await
                 .unwrap();
@@ -156,7 +160,18 @@ mod tests {
         storage
             .local_version_manager()
             .try_update_pinned_version(version);
-        let get_val = storage.get(&key, epoch, None).await.unwrap().unwrap();
+        let get_val = storage
+            .get(
+                &key,
+                ReadOptions {
+                    epoch,
+                    ..Default::default()
+                },
+                None,
+            )
+            .await
+            .unwrap()
+            .unwrap();
         assert_eq!(get_val, val);
 
         // 6. get compact task and there should be none
@@ -200,7 +215,13 @@ mod tests {
 
             let ramdom_key = rand::thread_rng().gen::<[u8; 32]>();
             local.put(ramdom_key, StorageValue::new_default_put(val.clone()));
-            write_batch.ingest(epoch).await.unwrap();
+            write_batch
+                .ingest(WriteOptions {
+                    epoch,
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
 
             storage.sync(Some(epoch)).await.unwrap();
             hummock_meta_client
@@ -285,7 +306,13 @@ mod tests {
 
             let ramdom_key = rand::thread_rng().gen::<[u8; 32]>();
             local.put(ramdom_key, StorageValue::new_default_put(val.clone()));
-            write_batch.ingest(epoch).await.unwrap();
+            write_batch
+                .ingest(WriteOptions {
+                    epoch,
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
 
             storage.sync(Some(epoch)).await.unwrap();
             hummock_meta_client
@@ -356,7 +383,15 @@ mod tests {
 
         // 6. scan kv to check key table_id
         let scan_result = storage
-            .scan::<_, Vec<u8>>(.., None, epoch, None)
+            .scan::<_, Vec<u8>>(
+                ..,
+                None,
+                ReadOptions {
+                    epoch,
+                    ..Default::default()
+                },
+                None,
+            )
             .await
             .unwrap();
         let mut scan_count = 0;

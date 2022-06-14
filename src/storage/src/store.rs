@@ -16,6 +16,7 @@ use std::ops::RangeBounds;
 use std::sync::Arc;
 
 use bytes::Bytes;
+use risingwave_common::catalog::TableId;
 use risingwave_common::consistent_hash::VNodeBitmap;
 use risingwave_pb::hummock::SstableInfo;
 
@@ -82,7 +83,7 @@ pub trait StateStore: Send + Sync + 'static + Clone {
     fn get<'a>(
         &'a self,
         key: &'a [u8],
-        epoch: u64,
+        read_options: ReadOptions,
         vnode: Option<&'a VNodeBitmap>,
     ) -> Self::GetFuture<'_>;
 
@@ -95,7 +96,7 @@ pub trait StateStore: Send + Sync + 'static + Clone {
         &self,
         key_range: R,
         limit: Option<usize>,
-        epoch: u64,
+        read_options: ReadOptions,
         vnodes: Option<VNodeBitmap>,
     ) -> Self::ScanFuture<'_, R, B>
     where
@@ -106,7 +107,7 @@ pub trait StateStore: Send + Sync + 'static + Clone {
         &self,
         key_range: R,
         limit: Option<usize>,
-        epoch: u64,
+        read_options: ReadOptions,
         vnodes: Option<VNodeBitmap>,
     ) -> Self::BackwardScanFuture<'_, R, B>
     where
@@ -125,14 +126,14 @@ pub trait StateStore: Send + Sync + 'static + Clone {
     fn ingest_batch(
         &self,
         kv_pairs: Vec<(Bytes, StorageValue)>,
-        epoch: u64,
+        write_options: WriteOptions,
     ) -> Self::IngestBatchFuture<'_>;
 
     /// Functions the same as `ingest_batch`, except that data won't be persisted.
     fn replicate_batch(
         &self,
         kv_pairs: Vec<(Bytes, StorageValue)>,
-        epoch: u64,
+        write_options: WriteOptions,
     ) -> Self::ReplicateBatchFuture<'_>;
 
     /// Opens and returns an iterator for given `key_range`.
@@ -141,7 +142,7 @@ pub trait StateStore: Send + Sync + 'static + Clone {
     fn iter<R, B>(
         &self,
         key_range: R,
-        epoch: u64,
+        read_options: ReadOptions,
         vnodes: Option<VNodeBitmap>,
     ) -> Self::IterFuture<'_, R, B>
     where
@@ -154,7 +155,7 @@ pub trait StateStore: Send + Sync + 'static + Clone {
     fn backward_iter<R, B>(
         &self,
         key_range: R,
-        epoch: u64,
+        read_options: ReadOptions,
         vnodes: Option<VNodeBitmap>,
     ) -> Self::BackwardIterFuture<'_, R, B>
     where
@@ -190,4 +191,16 @@ pub trait StateStoreIter: Send + 'static {
     type NextFuture<'a>: Future<Output = StorageResult<Option<Self::Item>>> + Send;
 
     fn next(&mut self) -> Self::NextFuture<'_>;
+}
+
+#[derive(Default, Clone)]
+pub struct ReadOptions {
+    pub epoch: u64,
+    pub table_id: TableId,
+}
+
+#[derive(Default, Clone)]
+pub struct WriteOptions {
+    pub epoch: u64,
+    pub table_id: TableId,
 }

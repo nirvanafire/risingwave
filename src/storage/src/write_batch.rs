@@ -17,6 +17,7 @@ use bytes::Bytes;
 use crate::error::StorageResult;
 use crate::hummock::HummockError;
 use crate::storage_value::{StorageValue, ValueMeta};
+use crate::store::WriteOptions;
 use crate::{Keyspace, StateStore};
 
 /// [`WriteBatch`] wraps a list of key-value pairs and an associated [`StateStore`].
@@ -80,16 +81,18 @@ where
     }
 
     /// Ingests this batch into the associated state store.
-    pub async fn ingest(mut self, epoch: u64) -> StorageResult<()> {
+    pub async fn ingest(mut self, write_options: WriteOptions) -> StorageResult<()> {
         self.preprocess()?;
-        self.store.ingest_batch(self.batch, epoch).await?;
+        self.store.ingest_batch(self.batch, write_options).await?;
         Ok(())
     }
 
     /// Ingests this batch into the associated state store, without being persisted.
-    pub async fn replicate_remote(mut self, epoch: u64) -> StorageResult<()> {
+    pub async fn replicate_remote(mut self, write_options: WriteOptions) -> StorageResult<()> {
         self.preprocess()?;
-        self.store.replicate_batch(self.batch, epoch).await?;
+        self.store
+            .replicate_batch(self.batch, write_options)
+            .await?;
         Ok(())
     }
 
@@ -160,6 +163,7 @@ mod tests {
     use super::WriteBatch;
     use crate::memory::MemoryStateStore;
     use crate::storage_value::StorageValue;
+    use crate::store::WriteOptions;
     use crate::Keyspace;
 
     #[tokio::test]
@@ -176,7 +180,10 @@ mod tests {
         key_space_batch.delete(Bytes::from("aa"));
 
         write_batch
-            .ingest(1)
+            .ingest(WriteOptions {
+                epoch: 1,
+                ..Default::default()
+            })
             .await
             .expect_err("Should panic here because of duplicate key.");
     }

@@ -13,7 +13,9 @@
 // limitations under the License.
 
 use bytes::{Buf, BufMut, BytesMut};
+use risingwave_common::catalog::TableId;
 use risingwave_hummock_sdk::key::next_key;
+use risingwave_storage::store::ReadOptions;
 use risingwave_storage::StateStore;
 
 use crate::common::HummockServiceOpts;
@@ -26,10 +28,11 @@ pub async fn list_kv(epoch: u64, table_id: u32) -> anyhow::Result<()> {
     }
     let scan_result = match table_id {
         u32::MAX => {
-            tracing::info!("using .. as range");
-            hummock
-                .scan::<_, Vec<u8>>(.., None, u64::MAX, Default::default())
-                .await?
+            panic!("must specify table_id");
+            // tracing::info!("using .. as range");
+            // hummock
+            //     .scan::<_, Vec<u8>>(.., None, u64::MAX, Default::default())
+            //     .await?
         }
         _ => {
             let mut buf = BytesMut::with_capacity(5);
@@ -37,7 +40,15 @@ pub async fn list_kv(epoch: u64, table_id: u32) -> anyhow::Result<()> {
             buf.put_u32(table_id);
             let range = buf.to_vec()..next_key(buf.to_vec().as_slice());
             hummock
-                .scan::<_, Vec<u8>>(range, None, u64::MAX, Default::default())
+                .scan::<_, Vec<u8>>(
+                    range,
+                    None,
+                    ReadOptions {
+                        epoch: u64::MAX,
+                        table_id: TableId { table_id },
+                    },
+                    Default::default(),
+                )
                 .await?
         }
     };

@@ -467,6 +467,7 @@ mod tests {
     use risingwave_common::catalog::TableId;
     use risingwave_common::types::ScalarImpl;
     use risingwave_storage::memory::MemoryStateStore;
+    use risingwave_storage::store::WriteOptions;
     use smallvec::smallvec;
 
     use super::*;
@@ -505,7 +506,13 @@ mod tests {
         // flush to write batch and write to state store
         let mut write_batch = store.start_write_batch();
         managed_state.flush(&mut write_batch).unwrap();
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // The minimum should be 0
         assert_eq!(
@@ -533,7 +540,13 @@ mod tests {
         epoch += 1;
         let mut write_batch = store.start_write_batch();
         managed_state.flush(&mut write_batch).unwrap();
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // The minimum should be 0
         assert_eq!(
@@ -560,7 +573,13 @@ mod tests {
         epoch += 1;
         let mut write_batch = store.start_write_batch();
         managed_state.flush(&mut write_batch).unwrap();
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // The minimum should be 20
         assert_eq!(
@@ -583,7 +602,13 @@ mod tests {
         epoch += 1;
         let mut write_batch = store.start_write_batch();
         managed_state.flush(&mut write_batch).unwrap();
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // The minimum should be 25
         assert_eq!(
@@ -606,7 +631,13 @@ mod tests {
         epoch += 1;
         let mut write_batch = store.start_write_batch();
         managed_state.flush(&mut write_batch).unwrap();
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // The minimum should be 30
         assert_eq!(
@@ -721,7 +752,13 @@ mod tests {
         // flush
         let mut write_batch = store.start_write_batch();
         managed_state.flush(&mut write_batch).unwrap();
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // The minimum should be 1, or the maximum should be 5
         assert_eq!(managed_state.get_output(epoch).await.unwrap(), extreme);
@@ -736,7 +773,13 @@ mod tests {
         epoch += 1;
         let mut write_batch = store.start_write_batch();
         managed_state.flush(&mut write_batch).unwrap();
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // The minimum should still be 1, or the maximum should still be 5
         assert_eq!(managed_state.get_output(epoch).await.unwrap(), extreme);
@@ -823,7 +866,13 @@ mod tests {
         // flush
         let mut write_batch = store.start_write_batch();
         managed_state.flush(&mut write_batch).unwrap();
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // The minimum should be None, or the maximum should be 5
         assert_eq!(managed_state.get_output(epoch).await.unwrap(), extreme);
@@ -838,7 +887,13 @@ mod tests {
         epoch += 1;
         let mut write_batch = store.start_write_batch();
         managed_state.flush(&mut write_batch).unwrap();
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         // The minimum should still be None, or the maximum should still be 5
         assert_eq!(managed_state.get_output(epoch).await.unwrap(), extreme);
@@ -888,7 +943,13 @@ mod tests {
                 epoch += 1;
                 let mut write_batch = store.start_write_batch();
                 managed_state.flush(&mut write_batch).unwrap();
-                write_batch.ingest(epoch).await.unwrap();
+                write_batch
+                    .ingest(WriteOptions {
+                        epoch,
+                        ..Default::default()
+                    })
+                    .await
+                    .unwrap();
             }
 
             managed_state
@@ -900,7 +961,13 @@ mod tests {
             epoch += 1;
             let mut write_batch = store.start_write_batch();
             managed_state.flush(&mut write_batch).unwrap();
-            write_batch.ingest(epoch).await.unwrap();
+            write_batch
+                .ingest(WriteOptions {
+                    epoch,
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
 
             // The minimum should be 6
             assert_eq!(
@@ -991,7 +1058,13 @@ mod tests {
             // flush to write batch and write to state store
             let mut write_batch = store.start_write_batch();
             managed_state.flush(&mut write_batch).unwrap();
-            write_batch.ingest(epoch).await.unwrap();
+            write_batch
+                .ingest(WriteOptions {
+                    epoch,
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
 
             let value = managed_state
                 .get_output(epoch)
@@ -1014,7 +1087,13 @@ mod tests {
     ) {
         let mut write_batch = keyspace.state_store().start_write_batch();
         managed_state.flush(&mut write_batch).unwrap();
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
     }
 
     #[tokio::test]

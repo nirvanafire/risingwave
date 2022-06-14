@@ -21,6 +21,7 @@ use risingwave_common::types::DataType;
 use risingwave_common::util::ordered::*;
 use risingwave_storage::cell_based_row_deserializer::GeneralCellBasedRowDeserializer;
 use risingwave_storage::storage_value::StorageValue;
+use risingwave_storage::store::WriteOptions;
 use risingwave_storage::{Keyspace, StateStore};
 
 use super::super::flush_status::BtreeMapFlushStatus as FlushStatus;
@@ -360,7 +361,13 @@ impl<S: StateStore, const TOP_N_TYPE: usize> ManagedTopNState<S, TOP_N_TYPE> {
                 }
             }
         }
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                table_id: self.keyspace.state_table_id(),
+            })
+            .await
+            .unwrap();
         Ok(())
     }
 

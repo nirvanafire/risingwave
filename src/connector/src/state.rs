@@ -19,6 +19,7 @@ use bytes::Bytes;
 use log::error;
 use risingwave_common::error::{internal_error, Result as RwResult};
 use risingwave_storage::storage_value::StorageValue;
+use risingwave_storage::store::WriteOptions;
 use risingwave_storage::{Keyspace, StateStore};
 
 use crate::{SplitImpl, SplitMetaData};
@@ -70,7 +71,12 @@ impl<S: StateStore> SourceStateHandler<S> {
                 local_batch.put(state.id(), StorageValue::new_default_put(value));
             });
             // If an error is returned, the underlying state should be rollback
-            let ingest_rs = write_batch.ingest(epoch).await;
+            let ingest_rs = write_batch
+                .ingest(WriteOptions {
+                    epoch,
+                    table_id: self.keyspace.state_table_id(),
+                })
+                .await;
             match ingest_rs {
                 Err(e) => {
                     error!(

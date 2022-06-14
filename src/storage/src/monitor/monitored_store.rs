@@ -80,14 +80,14 @@ where
     fn get<'a>(
         &'a self,
         key: &'a [u8],
-        epoch: u64,
+        read_options: ReadOptions,
         vnode: Option<&'a VNodeBitmap>,
     ) -> Self::GetFuture<'_> {
         async move {
             let timer = self.stats.get_duration.start_timer();
             let value = self
                 .inner
-                .get(key, epoch, vnode)
+                .get(key, read_options, vnode)
                 .await
                 .inspect_err(|e| error!("Failed in get: {:?}", e))?;
             timer.observe_duration();
@@ -105,7 +105,7 @@ where
         &self,
         key_range: R,
         limit: Option<usize>,
-        epoch: u64,
+        read_options: ReadOptions,
         vnodes: Option<VNodeBitmap>,
     ) -> Self::ScanFuture<'_, R, B>
     where
@@ -116,7 +116,7 @@ where
             let timer = self.stats.range_scan_duration.start_timer();
             let result = self
                 .inner
-                .scan(key_range, limit, epoch, vnodes)
+                .scan(key_range, limit, read_options, vnodes)
                 .await
                 .inspect_err(|e| error!("Failed in scan: {:?}", e))?;
             timer.observe_duration();
@@ -133,7 +133,7 @@ where
         &self,
         key_range: R,
         limit: Option<usize>,
-        epoch: u64,
+        read_options: ReadOptions,
         vnodes: Option<VNodeBitmap>,
     ) -> Self::BackwardScanFuture<'_, R, B>
     where
@@ -144,7 +144,7 @@ where
             let timer = self.stats.range_backward_scan_duration.start_timer();
             let result = self
                 .inner
-                .scan(key_range, limit, epoch, vnodes)
+                .scan(key_range, limit, read_options, vnodes)
                 .await
                 .inspect_err(|e| error!("Failed in backward_scan: {:?}", e))?;
             timer.observe_duration();
@@ -160,7 +160,7 @@ where
     fn ingest_batch(
         &self,
         kv_pairs: Vec<(Bytes, StorageValue)>,
-        epoch: u64,
+        write_options: WriteOptions,
     ) -> Self::IngestBatchFuture<'_> {
         async move {
             if kv_pairs.is_empty() {
@@ -173,7 +173,7 @@ where
             let timer = self.stats.write_batch_duration.start_timer();
             let batch_size = self
                 .inner
-                .ingest_batch(kv_pairs, epoch)
+                .ingest_batch(kv_pairs, write_options)
                 .await
                 .inspect_err(|e| error!("Failed in ingest_batch: {:?}", e))?;
             timer.observe_duration();
@@ -186,7 +186,7 @@ where
     fn iter<R, B>(
         &self,
         key_range: R,
-        epoch: u64,
+        read_options: ReadOptions,
         vnodes: Option<VNodeBitmap>,
     ) -> Self::IterFuture<'_, R, B>
     where
@@ -194,7 +194,7 @@ where
         B: AsRef<[u8]> + Send,
     {
         async move {
-            self.monitored_iter(self.inner.iter(key_range, epoch, vnodes))
+            self.monitored_iter(self.inner.iter(key_range, read_options, vnodes))
                 .await
         }
     }
@@ -202,7 +202,7 @@ where
     fn backward_iter<R, B>(
         &self,
         key_range: R,
-        epoch: u64,
+        read_options: ReadOptions,
         vnodes: Option<VNodeBitmap>,
     ) -> Self::BackwardIterFuture<'_, R, B>
     where
@@ -210,7 +210,7 @@ where
         B: AsRef<[u8]> + Send,
     {
         async move {
-            self.monitored_iter(self.inner.backward_iter(key_range, epoch, vnodes))
+            self.monitored_iter(self.inner.backward_iter(key_range, read_options, vnodes))
                 .await
         }
     }
@@ -243,11 +243,11 @@ where
     fn replicate_batch(
         &self,
         kv_pairs: Vec<(Bytes, StorageValue)>,
-        epoch: u64,
+        write_options: WriteOptions,
     ) -> Self::ReplicateBatchFuture<'_> {
         async move {
             self.inner
-                .replicate_batch(kv_pairs, epoch)
+                .replicate_batch(kv_pairs, write_options)
                 .await
                 .inspect_err(|e| error!("Failed in replicate_batch: {:?}", e))
         }

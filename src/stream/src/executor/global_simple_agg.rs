@@ -19,6 +19,7 @@ use risingwave_common::array::column::Column;
 use risingwave_common::array::StreamChunk;
 use risingwave_common::catalog::Schema;
 use risingwave_common::error::Result;
+use risingwave_storage::store::WriteOptions;
 use risingwave_storage::table::state_table::StateTable;
 use risingwave_storage::{Keyspace, StateStore};
 
@@ -202,6 +203,7 @@ impl<S: StateStore> SimpleAggExecutor<S> {
     ) -> StreamExecutorResult<Option<StreamChunk>> {
         // The state store of each keyspace is the same so just need the first.
         let store = keyspace[0].state_store();
+        let table_id = keyspace[0].state_table_id();
         // --- Flush states to the state store ---
         // Some state will have the correct output only after their internal states have been fully
         // flushed.
@@ -219,7 +221,7 @@ impl<S: StateStore> SimpleAggExecutor<S> {
         {
             state.flush(&mut write_batch, state_table).await?;
         }
-        write_batch.ingest(epoch).await?;
+        write_batch.ingest(WriteOptions { epoch, table_id }).await?;
 
         // Batch commit state tables.
         for state_table in state_tables.iter_mut() {

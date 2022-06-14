@@ -22,6 +22,7 @@ use risingwave_common::error::{internal_error, Result, RwError};
 use risingwave_common::hash::HashKey;
 use risingwave_common::types::{DataType, ToOwnedDatum};
 use risingwave_expr::expr::RowExpression;
+use risingwave_storage::store::WriteOptions;
 use risingwave_storage::{Keyspace, StateStore};
 
 use super::barrier_align::*;
@@ -518,7 +519,13 @@ impl<K: HashKey, S: StateStore, const T: JoinTypePrimitive> HashJoinExecutor<K, 
             for state in side.ht.values_mut() {
                 state.flush(&mut write_batch)?;
             }
-            write_batch.ingest(epoch).await.unwrap();
+            write_batch
+                .ingest(WriteOptions {
+                    epoch,
+                    table_id: side.keyspace.state_table_id(),
+                })
+                .await
+                .unwrap();
         }
 
         // evict the LRU cache

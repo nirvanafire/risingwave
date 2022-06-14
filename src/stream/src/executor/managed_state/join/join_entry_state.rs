@@ -218,6 +218,7 @@ mod tests {
     use risingwave_common::catalog::TableId;
     use risingwave_common::types::ScalarImpl;
     use risingwave_storage::memory::MemoryStateStore;
+    use risingwave_storage::store::WriteOptions;
 
     use super::*;
 
@@ -265,7 +266,13 @@ mod tests {
         // flush to write batch and write to state store
         let mut write_batch = store.start_write_batch();
         managed_state.flush(&mut write_batch).unwrap();
-        write_batch.ingest(epoch).await.unwrap();
+        write_batch
+            .ingest(WriteOptions {
+                epoch,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
 
         assert!(!managed_state.is_dirty());
     }
