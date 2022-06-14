@@ -36,6 +36,8 @@ use super::TableIter;
 use crate::cell_based_row_deserializer::{
     make_column_desc_index, CellBasedRowDeserializer, ColumnDescMapping,
 };
+use crate::cell_deserializer::CellDeserializer;
+use crate::cell_serializer::CellSerializer;
 use crate::cell_based_row_serializer::CellBasedRowSerializer;
 use crate::error::{StorageError, StorageResult};
 use crate::keyspace::StripPrefixIterator;
@@ -47,7 +49,7 @@ use crate::{Keyspace, StateStore, StateStoreIter};
 /// format: [keyspace | pk | `column_id` (4B)] -> value.
 /// if the key of the column id does not exist, it will be Null in the relation
 #[derive(Clone)]
-pub struct CellBasedTable<S: StateStore> {
+pub struct CellBasedTable<S: StateStore, SER: CellSerializer, DE: CellDeserializer> {
     /// The keyspace that the pk and value of the original table has.
     keyspace: Keyspace<S>,
 
@@ -67,6 +69,10 @@ pub struct CellBasedTable<S: StateStore> {
     /// Used for deserializing the row.
     mapping: Arc<ColumnDescMapping>,
 
+    cell_serializer: SER,
+
+    cell_deserializer: DE,
+
     column_ids: Vec<ColumnId>,
 
     /// Statistics.
@@ -78,7 +84,7 @@ pub struct CellBasedTable<S: StateStore> {
     dist_key_indices: Option<Vec<usize>>,
 }
 
-impl<S: StateStore> std::fmt::Debug for CellBasedTable<S> {
+impl<S: StateStore, SER: CellSerializer, DE: CellDeserializer> std::fmt::Debug for CellBasedTable<S, SER, DE> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("CellBasedTable")
             .field("column_descs", &self.column_descs)
@@ -90,7 +96,7 @@ fn err(rw: impl Into<RwError>) -> StorageError {
     StorageError::CellBasedTable(rw.into())
 }
 
-impl<S: StateStore> CellBasedTable<S> {
+impl<S: StateStore, SER: CellSerializer, DE: CellDeserializer> CellBasedTable<S, SER, DE> {
     pub fn new(
         keyspace: Keyspace<S>,
         column_descs: Vec<ColumnDesc>,
