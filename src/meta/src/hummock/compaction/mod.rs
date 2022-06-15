@@ -70,6 +70,7 @@ impl Clone for CompactStatus {
     }
 }
 
+#[derive(Debug, Default)]
 pub struct SearchResult {
     select_level: Level,
     target_level: Level,
