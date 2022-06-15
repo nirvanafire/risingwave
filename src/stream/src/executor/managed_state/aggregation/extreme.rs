@@ -136,19 +136,16 @@ where
         row_count: usize,
         pk_data_types: PkDataTypes,
         _group_key_hash_code: HashCode,
-        pk: Option<&Row>,
+        group_key: Option<&Row>,
     ) -> StreamExecutorResult<Self> {
         // Create the internal state based on the value we get.
         Ok(Self {
             top_n: BTreeMap::new(),
             total_count: row_count,
-            // keyspace,
             _phantom_data: PhantomData::default(),
             top_n_count,
-            // data_type: data_type.clone(),
             serializer: ExtremeSerializer::new(data_type, pk_data_types),
-            group_key: pk.cloned(),
-            // vnode: group_key_hash_code.to_vnode(),
+            group_key: group_key.cloned(),
         })
     }
 
@@ -229,7 +226,7 @@ where
             // Get relational pk and value.
             let sort_key = key.map(|key| key.into());
             let relational_value =
-                self.get_relational_pk_and_value(sort_key.clone(), composed_key.1.clone());
+                self.get_relational_value(sort_key.clone(), composed_key.1.clone());
 
             match op {
                 Op::Insert | Op::UpdateInsert => {
@@ -256,10 +253,8 @@ where
                             _ => unreachable!(),
                         }
                     }
-                    let value = sort_key.clone();
-
                     if do_insert {
-                        self.top_n.insert(composed_key.clone(), value.clone());
+                        self.top_n.insert(composed_key.clone(), sort_key);
                     }
                     state_table.insert(relational_value)?;
                     self.total_count += 1;
@@ -305,7 +300,6 @@ where
         // To make ExtremeState produce the correct result, the write batch must be flushed into the
         // state store before getting the output. Note that calling `.flush()` is not enough, as it
         // only generates a write batch without flushing to store.
-        // debug_assert!(!state_table.is_dirty());
 
         // Firstly, check if datum is available in cache.
         if let Some(v) = self.get_output_from_cache() {
@@ -337,16 +331,22 @@ where
 
             for _ in 0..self.top_n_count.unwrap_or(usize::MAX) {
                 if let Some(inner) = all_data_iter.next().await {
-                    let row = inner.unwrap().into_owned();
+                    let row = inner?;
+
+                    // Get the agg call value.
                     let value = row[row.0.len() - 1].clone();
-                    let mut key = ExtremePk::with_capacity(1);
+
+                    // Get sort key and extreme pk.
+                    let sort_key = value.as_ref().map(|v| v.clone().try_into().unwrap());
+                    let mut extreme_pk = ExtremePk::with_capacity(1);
                     let group_key_len = self.group_key.as_ref().map_or(0, |row| row.size());
-                    for pk_indice in group_key_len + 1..row.0.len() - 1 {
-                        key.push(row[pk_indice].clone());
+                    // The layout is group_key/sort_key/extreme_pk/agg_call value. So the range
+                    // should be [group_key_len + 1, row.0.len() - 1).
+                    for extreme_pk_index in group_key_len + 1..row.0.len() - 1 {
+                        extreme_pk.push(row[extreme_pk_index].clone());
                     }
-                    let sort_key = value.map(|row| row.try_into().unwrap());
-                    self.top_n
-                        .insert((sort_key, key), row[row.0.len() - 1].clone());
+
+                    self.top_n.insert((sort_key, extreme_pk), value);
                 } else {
                     break;
                 }
@@ -368,9 +368,9 @@ where
 
     // TODO: After state table refactored to derive pk from value, should be fixed to only return
     // value.
-    fn get_relational_pk_and_value(&self, sort_key: Datum, extreme_pk: ExtremePk) -> Row {
-        // Assemble value for relational table. Should be group_key + sort_key + input pk + agg call
-        // value.
+    /// Assemble value for relational table used by extreme state. Should be `group_key` +
+    /// `sort_key` + input pk + agg call value.
+    fn get_relational_value(&self, sort_key: Datum, extreme_pk: ExtremePk) -> Row {
         let mut sort_key_vec = if let Some(group_key) = self.group_key.as_ref() {
             group_key.0.to_vec()
         } else {
