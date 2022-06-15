@@ -6,7 +6,7 @@ cargo-cache: &cargo-cache
     - 'v1-cache-{{ id }}-'
   backend: s3
   s3:
-    bucket: cache-bucket
+    bucket: ci-cache-bucket
   paths:
     - "~/.cargo/bin/"
     - "~/.cargo/registry/index/"
