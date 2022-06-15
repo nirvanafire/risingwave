@@ -1,8 +1,24 @@
+cargo-cache: &cargo-cache
+  id: cache
+  key: "v1-cache-{{ id }}-{{ runner.os }}-{{ checksum 'Cargo.lock' }}"
+  restore-keys:
+    - 'v1-cache-{{ id }}-{{ runner.os }}-'
+    - 'v1-cache-{{ id }}-'
+  backend: s3
+  s3:
+    bucket: cache-bucket
+  paths:
+    - "~/.cargo/bin/"
+    - "~/.cargo/registry/index/"
+    - "~/.cargo/registry/cache/"
+    - "~/.cargo/git/db/"
+
 steps:
   - label: "build"
     command: "ci/scripts/build.sh -t debug -p dev"
     key: "build"
     plugins:
+      - gencer/cache#v2.4.10: *cargo-cache
       - docker-compose#v3.9.0:
           run: rw-build-env
           config: ci/docker-compose.yml
@@ -13,6 +29,7 @@ steps:
     command: "ci/scripts/e2e-test.sh -p dev"
     depends_on: "build"
     plugins:
+      - gencer/cache#v2.4.10: *cargo-cache
       - docker-compose#v3.9.0:
           run: rw-build-env
           config: ci/docker-compose.yml
